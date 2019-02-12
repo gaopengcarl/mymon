@@ -1,0 +1,432 @@
+一、此工具展示方式： 
+    工具将show global status中一些重要的值按照用户输入的描述和次数不断的打印到前台或者打印到
+指定文件中，用于帮助DBA进行性能诊断或者瓶颈判断。
+二、此工具运行原理：
+   将show global status的值根据用户输入的秒数记录，前一次的值为oldvalue,新的值为newvalue，存储
+在内存中，然后判断是否为累计值还是当前值，如果是累计值则newvalue-oldvalue，如果为当前值则
+输出，这样则保证了输出的正确性
+三、工具特点：
+
+1、监控账号只需要useage权限
+2、远程连接功能
+3、根据用户需要将数据写入到指定文件
+4、运行日志记录，检测出错输入日志
+5、5.6 5.7支持、没有测试5.5
+6、核心源码开源
+7、可以根据需求随时定制输出，当然需要联系本人
+
+注意：
+WINDOWS不支持，编译版本只有LINUX 64BIT.
+并且此工具依赖MYSQL连接动态库文件
+
+四、、工具使用帮助
+[root@testmy 6]# ./mymon 
+Author: gaopeng QQ:22389860 Mail: gaopp_200217@163.com 
+Info:This tool collect data from 'show global status' and show interval (-t) seconds data change
+help DBA to diagnose performance problem,when error or (-d) run log is at current dir name 
+is mymon.log.
+WIN32 platform is not support
+Useage:./mymon [-u username] [-p password] -S socketfile/{-h hosname -P port} -t seconds -n times [-l logfile] [-d]
+[-?]           :help info;
+[-u username]  :connect to mysqld username,when no username requisite is optional;
+[-p password]  :connect to mysqld password,when no password requisite is optional;
+[-S socketfile]:connect to mysqld socket file;
+[-h hostname]  :connect to mysqld host;
+[-P port]      :connect to mysqld port;
+                socketfile or [hostname port]  must;
+[-t seconds]   :seconds of interval,this is necessary;
+[-n times]     :how many times you watch,this is necessary;
+[-l logfile]   :when you want to write information to a logfile provide a logfile name
+                when a logfile provide no information at foreground,is optional;
+[-d]           :more running log at logfile,otherwise error log in mymon.log;
+
+   注意本地连接用-S连接指定socketfile即可，远程使用 -h -P连接 使用IP和端口连接 ,-l 可以直接把输出写入到指定的文件，
+-d就是debug模式一般不用本工具会记录一个日志在当前目录下名字为：mymon.log，这是运行日志如果有错误会记录到日志，
+开启-d 会计入更多的信息，但是一般不需要用，主要是我调试代码的时候用的.当然-t 和 -n就像帮助说的是间隔的秒数和
+持续的次数，使用中如果输出有值为-1则代表值没有采集到.
+   一般只需要在线上一台服务器上放上本工具，使用远程连接连接到如何服务器即可，如：
+   ./mymon -h 192.168.190.91 -P3306 -t 5 -n 100 -ummon2 -pgelc123 -l /root/mysqlog/20170123mysql.log
+   表示连接到服务器192.168.190.91 3306端口 5秒输出一次 输出100次，输出保留到文件/root/mysqlog/20170123mysql.log
+   但是注意SysTime: Sun Jan 22 16:13:30 2017 输出是运行程序系统的当前时间，但是Uptime当然就是MYSQLD服务器的时间
+
+四、如果获得和使用
+获取：
+我一共编译好了4个版本
+5.7 社区版本      mymon5.7c?
+5.7 percona版本  mymon5.7p
+5.6 社区版本       mymon5.6c
+5.6 perconna版本 mymon5.6p
+百度云盘如下：
+http://pan.baidu.com/s/1jIa6OfG
+
+
+使用：
+下载后上传到 LINUX操作系统,
+mkdir mon
+cp mymon5.7p ./mon/
+chmod 755 mymon5.7p
+然后必须找到相应的库文件位置一般在安装位置的lib目录下，如：
+[root@testmy 9]# ./mymon5.7c
+./mymon5.7c: error while loading shared libraries: libmysqlclient.so.20: cannot open shared object file: No such file or directory
+[root@testmy 9]# export LD_LIBRARY_PATH=/mysqldata/mysql5.7/lib
+[root@testmy 9]# ./mymon5.7c
+Author: gaopeng QQ:22389860 Mail: gaopp_200217@163.com 
+就可以正常运行，顺便说一下5.6为 so.18 5.7为so.20跟老的为5.6以前版本
+
+关于MYSQL监控用户权限：监控部需要什么权限，只要建立一个用户即可
+mysql> create user moni@'%' identified by 'gelc123';
+Query OK, 0 rows affected (0.22 sec)
+mysql> show grants for  moni@'%' ;
++----------------------------------+
+| Grants for moni@%                |
++----------------------------------+
+| GRANT USAGE ON *.* TO 'moni'@'%' |
++----------------------------------+
+1 row in set (0.06 sec)
+
+这也最小化了顾虑，因为这个账户基本没有什么权限，如果不放心程序，可以将程序放到远程连接到线上数据库如：
+./mymon5.6c -umoni -pgelc123 -h192.168.190.93 -P3307 -n 1 -t 1 -l /tmp/mysqlmon.log
+
+这样这个程序既不会有权限而且也不在线上数据库服务器，而且可以集中管理，但是一点注意：
+SysTime: Sun Jan 22 16:13:30 2017 输出是运行程序系统的当前时间，但是Uptime当然就是MYSQLD服务器的时间
+
+
+五、此工具展示内容：
+		展示的内容并不是固定，后期根据需求可以进行简单的加入指标即可，当前输出为如下：
+------------------------------------------MYMON--------------------------------------------
+SysTime: Sun Jan 22 16:13:30 2017
+Uptime:6963226    Connections:1       Aborted_clients:0       Max_used_connections:1319    
+--------------------------------------MYSQLINFO-------------------------------------------
+[###Threads info and qc  and :]
+Threads_connected:252         Threads_running:4             Qcache_free_memory:0            
+Qcache_hits:0                 Qcache_not_cached:0           Qcache_inserts:0                
+[###Table read info:]
+Handler_read_first:211        Handler_read_key:8804         Handler_read_next:42346         
+Handler_read_last:0           Handler_read_rnd:73           Handler_read_rnd_next:717694
+[###Sorts and temp tables info:]
+Sort_rows:0                   Sort_merge_passes:0
+Created_tmp_tables:163        Created_tmp_disk_tables:152
+[###Table join info:]
+Select_full_join:1            Select_scan:207
+[###Open table cache and binlog cache info:]
+Table_open_cache_hits:4938    Table_open_cache_misses:0
+Binlog_cache_use:820          Binlog_cache_disk_use:0
+[###Hanler_xxx and Com_xxx info:]
+Handler_delete:34574          Handler_update:675            Handler_write:1364
+Handler_commit:5833           Handler_rollback:10
+Com_commit:156                Com_rollback:5
+U(counts):631     D(counts):159     I(counts):47      S(counts):4955    
+--------------------------------------INNODBINFO------------------------------------------
+[###Innodb_lock info:]
+Innodb_row_lock_time:0                Innodb_row_lock_waits:0
+Innodb_row_lock_current_waits:38
+[###Innodb_buffer_pool info:]
+Innodb_buf_pool_pages_total:1965840   Innodb_buf_pool_pages_dirty:19154
+Innodb_buf_pages_data:1940433         Innodb_buf_pages_free:8116
+Innodb_buffer_pool_wait_free:0        Innodb_buffer_pool_pages_misc:17291
+Innodb_dblwr_pages_written:1188       Innodb_dblwr_writes:80
+Innodb_buffer_pool_pages_flushed:2249
+[###Innodb_log info:]
+Innodb_log_writes:796                 Innodb_log_waits:0
+Innodb_os_log_pending_fsyncs:0        Innodb_os_log_pending_writes:0
+Innodb_os_log_written:44073472
+[###Innodb_data read/writes info:]
+Innodb_data_reads:684                 Innodb_data_read:11206656
+Innodb_data_writes:2067               Innodb_data_written:63603200
+Innodb_data_fsyncs:1017               Innodb_data_pending_fsyncs:0
+Innodb_buffer_pool_reads(physics reads):423
+Innodb_buffer_pool_read_requests(logic reads):2869823
+[###Innodb_data rows info:]
+U(rows):675     D(rows):34575   I(rows):194     S(rows):767094  
+---------------------------------------TOTALINFO------------------------------------------
+Bytes_received:911280         Bytes_sent:8653956
+
+六、监控值说明：
+(本部分，带有作者自己的理解，如果有误请指出)
+
+文中
+当前值输出：保持show global status的当前值输出
+累计值相减输出：用上一次的值减去下一次的值输出，间隔为用户指定的秒数
+
+第一部分：
+SysTime: Sun Jan 22 16:13:30 2017
+Uptime:6963226    Connections:1       Aborted_clients:0       Max_used_connections:1319    
+
+Uptime:The number of seconds the MySQL server has been running.(当前值输出 单位秒)
+Connections:The number of connection attempts (successful or not) to the MySQL server.(累计值相减输出 单位次数)
+Aborted_clients:The number of connections that were aborted because the client died without closing the connection
+                properly.(累计值相减输出，单位连接数)
+Max_used_connections:The maximum number of connections that have been in use simultaneously since the server started.
+                     (当前值输出，单位连接数)
+第二部分：
+[###Threads info and qc  and :]
+Threads_connected:252         Threads_running:4             Qcache_free_memory:0            
+Qcache_hits:0                 Qcache_not_cached:0           Qcache_inserts:0        
+
+Threads_connected：The number of currently open connections.(当前值输出 单位连接数)
+Threads_running：The number of threads that are not sleeping.(当前值输出 单位连接数)
+Qcache_free_memory:The amount of free memory for the query cache.(当前值输出 单位字节数)
+Qcache_hits:The number of query cache hits.(累计值相减输出 单位次数)
+Qcache_not_cached:The number of noncached queries.(累计值相减输出 单位次数)
+Qcache_inserts:The number of queries added to the query cache.(累计值相减输出 单位次数)
+
+第三部分：
+本部分全部是(累计值相减输出 单位次数)
+[###Table read info:]
+Handler_read_first:211        Handler_read_key:8804         Handler_read_next:42346         
+Handler_read_last:0           Handler_read_rnd:73           Handler_read_rnd_next:717694
+
+Handler_read_first:
+         /*索引中第一条记录被读的次数。如果较高，它表明服务器正执行大量全索引扫描；例如，SELECT * order by id，假定id列有索引。
+         * eg:
+         * +----+-------------+-------+------------+-------+---------------+---------+---------+------+------+----------+-------+
+         * | id | select_type | table | partitions | type  | possible_keys | key     | key_len | ref  | rows | filtered | Extra |
+         * +----+-------------+-------+------------+-------+---------------+---------+---------+------+------+----------+-------+
+         * |  1 | SIMPLE      | testj | NULL       | index | NULL          | PRIMARY | 276     | NULL |   19 |   100.00 | NULL  |
+         * +----+-------------+-------+------------+-------+---------------+---------+---------+------+------+----------+-------+
+         */
+Handler_read_key:
+         /*根据索引读一行的请求数。如果较高，说明查询和表的索引正确。本值可能是ref或者const也可能是range，只是代表索引KEY命中使用了索引
+         * eg:
+         * mysql> explain select * from testshared3 where id>1;
+         * +----+-------------+-------------+------------+-------+---------------+------+---------+------+------+----------+-----------------------+
+         * | id | select_type | table       | partitions | type  | possible_keys | key  | key_len | ref  | rows | filtered | Extra                 |
+         * +----+-------------+-------------+------------+-------+---------------+------+---------+------+------+----------+-----------------------+
+         * |  1 | SIMPLE      | testshared3 | NULL       | range | id            | id   | 5       | NULL |    1 |   100.00 | Using index condition |
+         * +----+-------------+-------------+------------+-------+---------------+------+---------+------+------+----------+-----------------------+
+         */
+Handler_read_next:
+         /*按照索引顺序读下一行的请求数,如果索引不唯一或者使用唯一索引的前缀或者范围都会触发这个值,简单的说只有唯一命中不触发这个值
+         * 这个值如果比较大说明需要连续访问下一个key的次数非常多
+         *
+         *eg:
+         *mysql> explain select * from testshared3 where id=1;
+         *+----+-------------+-------------+------------+------+---------------+------+---------+-------+--------+----------+-------+
+         *| id | select_type | table       | partitions | type | possible_keys | key  | key_len | ref   | rows   | filtered | Extra |
+         *+----+-------------+-------------+------------+------+---------------+------+---------+-------+--------+----------+-------+
+         *|  1 | SIMPLE      | testshared3 | NULL       | ref  | id            | id   | 5       | const | 523260 |   100.00 | NULL  |
+         *+----+-------------+-------------+------------+------+---------------+------+---------+-------+--------+----------+-------+
+         *
+         *| Handler_read_key      | 49      |
+         *| Handler_read_next     | 897698  |
+         */
+Handler_read_last:
+        /*
+         * 查询读索引最后一个索引键的请求数。当使用ORDER BY时，服务器优先发出使用第一个索引的请求，之后顺序往后扫描索引。当使用ORDER BY DESC时，
+         * 服务器优先发出使用最后一个索引的请求， 之后向前扫描索引。
+         * 例如：select … order by id desc limit 10;
+         */
+
+Handler_read_rnd,Handler_read_rnd_next:这两个值较大则可能遇到了全表扫描及type=ALL
+
+这一部分则可以大体掌握当前数据库全表扫描和索引使用的大概情况  
+第四部分：
+[###Sorts and temp tables info:]
+Sort_rows:0                   Sort_merge_passes:0
+Created_tmp_tables:163        Created_tmp_disk_tables:152
+
+Sort_rows:The number of sorted rows.(累计值相减输出 单位行数)
+Sort_merge_passes:The number of merge passes that the sort algorithm has had to do.(累计值相减输出 单位次数)
+Created_tmp_tables:The number of internal temporary tables created by the server while executing statements.(累计值相减输出 单位次数)
+Created_tmp_disk_tables:The number of internal on-disk temporary tables created by the server while executing statements.(累计值相减输出 单位次数)
+
+很明显这一部分说明了排序和临时表使用情况，可以帮助DBA进行判断
+
+第五部分：
+[###Table join info:]
+Select_full_join:1            Select_scan:207
+
+Select_full_join:The number of joins that perform table scans because they do not use indexes. 
+                 If this value is not 0, you should carefully check the indexes of your tables
+                 (累计值相减输出 单位次数)
+Select_scan:The number of joins that did a full scan of the first table. (累计值相减输出 单位次数)
+
+这两个值则说明了jion的时候是否使用到了索引，特别是Select_full_join，应该比较低，否则说明被驱动表没有使用到索引
+应该引起重视，优化语句，一般来讲Select_scan比较高是正常的因为驱动表如果没有谓词条件使用全表扫描是正常的方式
+
+第六部分：
+[###Open table cache and binlog cache info:]
+Table_open_cache_hits:4938    Table_open_cache_misses:0
+Binlog_cache_use:820          Binlog_cache_disk_use:0
+
+Table_open_cache_hits:The number of hits for open tables cache lookups.(累计值相减输出 单位次数)
+Table_open_cache_misses:The number of misses for open tables cache lookups. (累计值相减输出 单位次数)
+Binlog_cache_use: The number of transactions that used the binary log cache. (累计值相减输出 单位事物数)
+Binlog_cache_disk_use:The number of transactions that used the temporary binary log cache but that exceeded the value 
+                      of binlog_cache_size and used a temporary file to store statements from the transaction.(累计值相减输出 单位事物数)
+明显这部分说明了binlog_cache_size和 table_open_cache是否合适
+
+第七部分：
+本部分全部是(累计值相减输出 单位次数)
+[###Hanler_xxx and Com_xxx info:]
+Handler_delete:34574          Handler_update:675            Handler_write:1364
+Handler_commit:5833           Handler_rollback:10
+Com_commit:156                Com_rollback:5
+U(counts):631     D(counts):159     I(counts):47      S(counts):4955    
+
+U(counts):631     D(counts):159     I(counts):47      S(counts):4955  
+这一行是Com_update\Com_delete\Com_insert\Com_select的简写
+
+Handler_xxx:这一批值说明的是相应操作处理的次数
+Com_xxx:这一批值说明是相应操作对应语句发出的次数
+
+比如Handler_commit 和 Com_commit这不同，如果是隐含提交和自动提交不用发起commit，但是
+commit是处理了的，那么Handler_commit增加而Com_rollback不变，又比如手动执行一个commit
+Com_commit增加Handler_commit不变，因为虽然发起了commit命令并不需要处理实验如下：
+
+mysql> show status like '%commit%';
++----------------+-------+
+| Variable_name  | Value |
++----------------+-------+
+| Com_commit     | 1     |
+| Com_xa_commit  | 0     |
+| Handler_commit | 4     |
++----------------+-------+
+3 rows in set (0.01 sec)
+
+mysql> commit;
+Query OK, 0 rows affected (0.00 sec)
+
+mysql> show status like '%commit%';
++----------------+-------+
+| Variable_name  | Value |
++----------------+-------+
+| Com_commit     | 2     |
+| Com_xa_commit  | 0     |
+| Handler_commit | 4     |
++----------------+-------+
+3 rows in set (0.00 sec)
+
+第八部分：
+[###Innodb_lock info:]
+Innodb_row_lock_time:0                Innodb_row_lock_waits:0
+Innodb_row_lock_current_waits:38
+
+Innodb_row_lock_time:The total time spent in acquiring row locks for InnoDBtables, in milliseconds.(累计值相减输出 单位毫秒)
+Innodb_row_lock_waits:The number of times operations on InnoDB tables had to wait for a row lock.(累计值相减输出 单位次数)
+Innodb_row_lock_current_waits:The number of row lockscurrently being waited for by operations on InnoDB tables.(当前值输出 单位个数)
+
+明显这一部分是对innodb 锁的状态的监控
+
+第九部分：
+
+[###Innodb_buffer_pool info:]
+Innodb_buf_pool_pages_total:1965840   Innodb_buf_pool_pages_dirty:19154
+Innodb_buf_pages_data:1940433         Innodb_buf_pages_free:8116
+Innodb_buffer_pool_wait_free:0        Innodb_buffer_pool_pages_misc:17291
+Innodb_dblwr_pages_written:1188       Innodb_dblwr_writes:80
+Innodb_buffer_pool_pages_flushed:2249
+read_ahead:0          ahead_evict:0          ahead_rnd:0       
+
+Innodb_buf_pool_pages_total:及Innodb_buffer_pool_pages_data The total size of the InnoDB buffer pool, in pages.(当前值输出 单位页)
+Innodb_buf_pool_pages_dirty:及Innodb_buffer_pool_pages_dirty The current number of dirty pagesin the InnoDB buffer pool.(当前值输出 单位页)
+Innodb_buf_pages_data:及Innodb_buffer_pool_pages_data The number of pagesin the InnoDB buffer poolcontaining data. The number includes both dirtyand
+                      clean pages.(当前值输出 单位页)
+Innodb_buf_pages_free:及Innodb_buffer_pool_pages_free The number of free pagesin the InnoDB buffer pool.(当前值输出 单位页)
+Innodb_buffer_pool_wait_free:Normally, writes to the InnoDB buffer poolhappen in the background. When InnoDBneeds to read or
+                             create a pageand no clean pages are available, InnoDBflushes some dirty pagesfirst and waits for that
+                             operation to finish. This counter counts instances of these waits.(累计值相减输出 单位次数)
+
+Innodb_buffer_pool_pages_misc:The number of pages in the InnoDB buffer pool that are busy because they have
+                              been allocated for administrative overhead, such as row locks or the adaptive hash
+                              index. This value can also be calculated as Innodb_buffer_pool_pages_total ?
+                              Innodb_buffer_pool_pages_free ? Innodb_buffer_pool_pages_data.(当前值输出 单位页)
+
+Innodb_dblwr_pages_written:The number of pages that have been written to the doublewrite buffer.(累计值相减输出 单位页)
+Innodb_dblwr_writes:The number of doublewrite operations that have been performed. (累计值相减输出 单位次数)
+Innodb_buffer_pool_pages_flushed:The number of requests to flush pages from the InnoDB buffer pool.(累计值相减输出 单位次数)
+
+这部分是innodb_buffer_pool的重点包含了脏页,数据页,空闲页等信息,以及刷磁盘的次数
+
+第十部分：
+[###Innodb_log info:]
+Innodb_log_writes:796                 Innodb_log_waits:0
+Innodb_os_log_pending_fsyncs:0        Innodb_os_log_pending_writes:0
+Innodb_os_log_written:44073472
+
+
+Innodb_log_writes:The number of physical writes to the InnoDB redo logfile.(累计值相减输出 单位次数)
+Innodb_log_waits:The number of times that the log buffer was too small and a wait was required for it to be flushed before
+                continuing.(累计值相减输出 单位次数)
+Innodb_os_log_pending_fsyncs:The number of pending fsync() operations for the InnoDB redo logfiles.(累计值相减输出 单位次数)
+Innodb_os_log_pending_writes:The number of pending writes to the InnoDB redo logfiles.(累计值相减输出 单位次数)
+Innodb_os_log_written:The number of bytes written to the InnoDB redo logfiles.(累计值相减输出 单位字节)
+
+这部分说明了 innodb redo 写的信息，如写了多少数据，多少次等待，如果Innodb_os_log_pending_writes和Innodb_os_log_pending_fsyncs
+不为0则说明遭遇了I/O等待。而Innodb_log_waits不为0则考虑innodb_log_buffer_size 是否过小。
+注意：不管innodb_flush_method设置如何 redo始终使用kernel buffer。
+
+第十一部分：
+[###Innodb_data read/writes info:]
+Innodb_data_reads:684                 Innodb_data_read:11206656
+Innodb_data_writes:2067               Innodb_data_written:63603200
+Innodb_data_fsyncs:1017               Innodb_data_pending_fsyncs:0
+Innodb_buffer_pool_reads(physics reads):423
+Innodb_buffer_pool_read_requests(logic reads):2869823
+
+Innodb_data_reads:The total number of data reads.(累计值相减输出 单位次数)
+Innodb_data_read:The amount of data read since the server was started(累计值相减输出 单位字节数)
+Innodb_data_writes:The total number of data writes.(累计值相减输出 单位次数)
+Innodb_data_written:The amount of data written so far, in bytes.(累计值相减输出 单位字节数)
+Innodb_data_fsyncs:The number of fsync()operations so far. The frequency of fsync()calls is influenced by the setting
+                   of the innodb_flush_method configuration option.(累计值相减输出 单位次数)
+Innodb_data_pending_fsyncs:The current number of pending fsync()operations. The frequency of fsync()calls is influenced by
+                           the setting of the innodb_flush_method configuration option.(累计值相减输出 单位次数)
+Innodb_buffer_pool_reads(physics reads):The number of logical reads that InnoDB could not satisfy from the buffer pool, and had to read 
+                                        directly from disk.(累计值相减输出 单位次数)
+Innodb_buffer_pool_read_requests(logic reads):The number of logical read requests.(累计值相减输出 单位次数)
+read_ahead:及Innodb_buffer_pool_read_ahead:The number of pages read into the InnoDB buffer pool by the read-ahead background thread.(累计值相减输出 单位页)
+ahead_evict:及Innodb_buffer_pool_read_ahead_evicted:The number of pagesread into the InnoDB buffer poolby the read-aheadbackground thread that were
+                                      subsequently evictedwithout having been accessed by queries.(累计值相减输出 单位页)
+ahead_rnd:及Innodb_buffer_pool_read_ahead_rnd:The number of “random”read-aheads initiated by InnoDB. This happens when a query scans a large
+                                  portion of a table but in random order.(累计值相减输出 单位次数)
+
+这一部分可以看出逻辑读取的命中率，预读效率等，注意Innodb_data_pending_fsyncs和Innodb_data_fsyncs如果开启了O_DIRECT,那么innodb_buffer的内存
+数据不会出现在kernel buffer，那么fsyncs pending的情况会少得多。如果这两个值较大注意磁盘I/O
+
+第十二部分：
+本部分全部是(累计值相减输出 单位行数)
+U(rows):675     D(rows):34575   I(rows):194     S(rows):767094  
+
+U:Innodb_rows_updated
+D:Innodb_rows_deleted
+I:Innodb_rows_inserted
+S:Innodb_rows_read
+
+这部分真正的反应了DML和SELECT的行数，注意和Com_xxx和Handler_xxx的区别
+
+第十三部分：
+Bytes_received:911280         Bytes_sent:8653956
+
+没什么好说的自己查文档
+
+七、内存溢出检测
+    使用：
+valgrind --tool=memcheck --leak-check=full  ./mymon5.7c -S/mysqldata/mysql5.7sla/mysqld3307.sock -t 1 -n 10
+    
+==5120== LEAK SUMMARY:
+==5120==      definitely lost: 0 bytes in 0 blocks
+==5120==      indirectly lost: 0 bytes in 0 blocks
+==5120==      possibly lost: 232 bytes in 2 blocks
+==5120==      still reachable: 8,176 bytes in 2 blocks
+==5120==      suppressed: 0 bytes in 0 blocks
+==5120== Reachable blocks (those to which a pointer was found) are not shown.
+==5120== To see them, rerun with: --leak-check=full --show-reachable=yes
+==5120== 
+==5120== For counts of detected and suppressed errors, rerun with: -v
+==5120== ERROR SUMMARY: 2 errors from 2 contexts (suppressed: 6 from 6)
+可以看到没有内存溢出
+
+
+
+
+
+
+
+
+
+加入监控值：
+1、在fun.h中写入需要监控的指标的字符串
+   判断是动态和静态数据
+2、在fun.c中找到print_data函数根据自己
+   的需要修改界面即可
